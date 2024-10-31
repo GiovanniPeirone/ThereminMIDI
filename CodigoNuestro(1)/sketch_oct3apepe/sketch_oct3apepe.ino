@@ -1,39 +1,52 @@
-// Definición de pines para el sensor ultrasónico
-int Trig = 13; // Pin de disparo (Trig)
-int Echo = 12; // Pin de eco (Echo)
-const int  PinReservado = 13;
+int Trig = 9; // Pin de disparo (Trigger)
+int Echo = 8; // Pin de eco (Echo)
+const int notaMin = 36;  // Nota MIDI mínima (C2)
+const int notaMax = 60;  // Nota MIDI máxima (C4)
+const int distanciaMin = 5;   // Distancia mínima en cm
+const int distanciaMax = 60;  // Distancia máxima en cm
+float distancia, distanciaAnterior;
+long tiempo;
+int nota;
 
-void setup()
-{
-    Serial.begin(9600); // Inicializa la comunicación serie a 9600 baudios
-    pinMode(Trig, OUTPUT); // Configura el pin Trig como salida
-    pinMode(Echo, INPUT); // Configura el pin Echo como entrada
-    pinMode(Echo, INPUT);
+void setup() {
+  Serial.begin(9600);          // Inicializa la comunicación en serie
+  pinMode(Trig, OUTPUT);        // Configura el pin Trig como salida
+  pinMode(Echo, INPUT);         // Configura el pin Echo como entrada
 }
 
-void loop ()
-{
-    int duracion; // Variable para almacenar la duración del pulso
-    float distancia; // Variable para almacenar la distancia calculada
+void loop() {
+  // Envía un pulso al sensor para iniciar la medición
+  digitalWrite(Trig, LOW); 
+  delayMicroseconds(5);
+  digitalWrite(Trig, HIGH); 
+  delayMicroseconds(10); 
+  digitalWrite(Trig, LOW);
 
-    // Enviamos un pulso de 10 microsegundos al pin Trig para activar el sensor
-    digitalWrite(Trig, LOW); // Aseguramos que el pin Trig esté bajo
-    delayMicroseconds(4); // Esperamos 4 microsegundos
-    digitalWrite(Trig, HIGH); // Activamos el pin Trig
-    delayMicroseconds(10); // Mantenemos el pulso alto durante 10 microsegundos
-    digitalWrite(Trig, LOW); // Desactivamos el pin Trig
+  // Mide la duración del pulso en el pin Echo
+  tiempo = pulseIn(Echo, HIGH);  
+  distancia = 0.0177 * tiempo;   // Convierte el tiempo en distancia (cm)
 
-    // Medimos el tiempo que tarda el eco en regresar al pin Echo
-    duracion = pulseIn(Echo, HIGH); // Lee el pulso en el pin Echo
+  // Solo enviar notas cuando la distancia cambia más de 0.8 cm
+  if (abs(distanciaAnterior - distancia) > 0.8) { 
+    if (distancia <= distanciaMax) {
+      // Mapear la distancia a un valor de nota MIDI
+      nota = map(distancia, distanciaMin, distanciaMax, notaMin, notaMax);
+      nota = constrain(nota, notaMin, notaMax); // Limitar al rango de notas
 
-    // Dividimos la duración por 2 porque el tiempo registrado es de ida y vuelta
-    duracion = duracion / 2;
+      // Enviar "Note On" para activar la nota en BandLab
+      Serial.write(144);  // "Note On" en canal 1
+      Serial.write(nota); // Nota calculada
+      Serial.write(100);  // Velocidad de la nota (100 de 127)
 
-    // Calculamos la distancia en centímetros (1 microsegundo es aproximadamente 0.034 cm)
-    distancia = duracion / 29; // La fórmula es distancia = tiempo / 29 (para cm)
+      delay(100); // Mantener la nota un momento
 
-    // Enviamos la distancia calculada a través del puerto serie
-    Serial.println(distancia); // Corrigiendo el nombre de la variable 'distancia'
+      // Enviar "Note Off" para desactivar la nota en BandLab
+      Serial.write(144);  // "Note Off" en canal 1
+      Serial.write(nota); // Nota calculada
+      Serial.write(0);    // Velocidad de apagado (0 = apagado)
+    }
+    distanciaAnterior = distancia;
+  }
 
-    delay(50); // Esperamos 50 ms antes de realizar la siguiente lectura
+  delay(50);  // Pausa antes de la próxima lectura
 }
