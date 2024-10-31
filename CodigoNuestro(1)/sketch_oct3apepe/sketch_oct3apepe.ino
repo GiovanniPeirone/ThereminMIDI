@@ -3,7 +3,7 @@ int Trig = 13; // Pin de disparo (Trig)
 int Echo = 12; // Pin de eco (Echo)
 const int  PinReservado = 13;
 
-void setup()s
+void setup()
 {
     Serial.begin(9600); // Inicializa la comunicación serie a 9600 baudios
     pinMode(Trig, OUTPUT); // Configura el pin Trig como salida

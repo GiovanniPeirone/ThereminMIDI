@@ -12,18 +12,18 @@ float distancia,distanciaAnterior;
 long tiempo;
 int valor;
 void setup(){
-  Serial.begin(115200);
-  pinMode(9, OUTPUT); // trigger, aqui arduino envia un pulso al sensor, para que inicie la medicion
-  pinMode(8, INPUT);  // echo, con este arduino recibe el pulso cuyo tiempo representa
+  Serial.begin(9600);
+  pinMode(12, OUTPUT); // trigger, aqui arduino envia un pulso al sensor, para que inicie la medicion
+  pinMode(11, INPUT);  // echo, con este arduino recibe el pulso cuyo tiempo representa
                        //la duracion del viaje del sonido en el aire
 }
 
 void loop(){
-  digitalWrite(9,LOW); 
+  digitalWrite(12,LOW); 
   delayMicroseconds(5);
-  digitalWrite(9, HIGH); //envio del pulso para iniciar medicion
+  digitalWrite(12, HIGH); //envio del pulso para iniciar medicion
   delayMicroseconds(10); //arduino espera 10 micro segundos
-  tiempo=pulseIn(8, HIGH);  //se mide la duración del pulso
+  tiempo=pulseIn(11, HIGH);  //se mide la duración del pulso
   distancia= 0.0177*tiempo; //multiplicamos el tiempo para convertirlo en dista
 
   if (abs(distanciaAnterior-distancia)>0.8) //resolución de 8 mm.
