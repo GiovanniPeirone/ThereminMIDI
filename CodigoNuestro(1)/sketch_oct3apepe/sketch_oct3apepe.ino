@@ -1,52 +1,86 @@
-int Trig = 9; // Pin de disparo (Trigger)
-int Echo = 8; // Pin de eco (Echo)
-const int notaMin = 36;  // Nota MIDI mínima (C2)
-const int notaMax = 60;  // Nota MIDI máxima (C4)
+int Trig1 = 12; // Pin Trigger para el sensor 1 (notas)
+int Echo1 = 13; // Pin Echo para el sensor 1 (notas)
+int Trig2 = 10; // Pin Trigger para el sensor 2 (volumen)
+int Echo2 = 9;  // Pin Echo para el sensor 2 (volumen)
+const int VCC2 = 7;  // VCC del segundo sensor en el pin digital 7
+
+const int notas[] = {36, 38, 40, 41, 43, 45, 47, 48, 50, 52, 53, 55, 57, 59, 60}; // Notas MIDI discretas
+const int numNotas = sizeof(notas) / sizeof(notas[0]); // Cantidad de notas en el array
 const int distanciaMin = 5;   // Distancia mínima en cm
 const int distanciaMax = 60;  // Distancia máxima en cm
-float distancia, distanciaAnterior;
-long tiempo;
+
+float distancia1, distanciaAnterior1;
+float distancia2, distanciaAnterior2;
+long tiempo1, tiempo2;
 int nota;
+int volumen;
 
 void setup() {
   Serial.begin(9600);          // Inicializa la comunicación en serie
-  pinMode(Trig, OUTPUT);        // Configura el pin Trig como salida
-  pinMode(Echo, INPUT);         // Configura el pin Echo como entrada
+  
+  // Configuración del primer sensor
+  pinMode(Trig1, OUTPUT);      
+  pinMode(Echo1, INPUT);
+
+  // Configuración del segundo sensor
+  pinMode(Trig2, OUTPUT);      
+  pinMode(Echo2, INPUT);
+
+  // Alimentar el segundo sensor desde el pin digital 7
+  pinMode(VCC2, OUTPUT);
+  digitalWrite(VCC2, HIGH); // Activa el VCC para el segundo sensor
 }
 
 void loop() {
-  // Envía un pulso al sensor para iniciar la medición
-  digitalWrite(Trig, LOW); 
+  // Medición del primer sensor para las notas
+  digitalWrite(Trig1, LOW); 
   delayMicroseconds(5);
-  digitalWrite(Trig, HIGH); 
+  digitalWrite(Trig1, HIGH); 
   delayMicroseconds(10); 
-  digitalWrite(Trig, LOW);
+  digitalWrite(Trig1, LOW);
+  tiempo1 = pulseIn(Echo1, HIGH);  
+  distancia1 = 0.0177 * tiempo1;
 
-  // Mide la duración del pulso en el pin Echo
-  tiempo = pulseIn(Echo, HIGH);  
-  distancia = 0.0177 * tiempo;   // Convierte el tiempo en distancia (cm)
+  // Si la distancia cambia más de 0.8 cm
+  if (abs(distanciaAnterior1 - distancia1) > 0.8) { 
+    if (distancia1 <= distanciaMax) {
+      int notaIndex = map(distancia1, distanciaMin, distanciaMax, 0, numNotas - 1);
+      nota = notas[notaIndex];
 
-  // Solo enviar notas cuando la distancia cambia más de 0.8 cm
-  if (abs(distanciaAnterior - distancia) > 0.8) { 
-    if (distancia <= distanciaMax) {
-      // Mapear la distancia a un valor de nota MIDI
-      nota = map(distancia, distanciaMin, distanciaMax, notaMin, notaMax);
-      nota = constrain(nota, notaMin, notaMax); // Limitar al rango de notas
-
-      // Enviar "Note On" para activar la nota en BandLab
       Serial.write(144);  // "Note On" en canal 1
-      Serial.write(nota); // Nota calculada
+      Serial.write(nota); 
       Serial.write(100);  // Velocidad de la nota (100 de 127)
 
       delay(100); // Mantener la nota un momento
 
-      // Enviar "Note Off" para desactivar la nota en BandLab
       Serial.write(144);  // "Note Off" en canal 1
-      Serial.write(nota); // Nota calculada
+      Serial.write(nota); 
       Serial.write(0);    // Velocidad de apagado (0 = apagado)
     }
-    distanciaAnterior = distancia;
+    distanciaAnterior1 = distancia1;
   }
 
-  delay(50);  // Pausa antes de la próxima lectura
+  // Medición del segundo sensor para el volumen
+  digitalWrite(Trig2, LOW); 
+  delayMicroseconds(5);
+  digitalWrite(Trig2, HIGH); 
+  delayMicroseconds(10); 
+  digitalWrite(Trig2, LOW);
+  tiempo2 = pulseIn(Echo2, HIGH);  
+  distancia2 = 0.0177 * tiempo2;
+
+  // Si la distancia cambia más de 0.8 cm
+  if (abs(distanciaAnterior2 - distancia2) > 0.8) { 
+    if (distancia2 <= distanciaMax) {
+      volumen = map(distancia2, distanciaMin, distanciaMax, 0, 127);
+      volumen = constrain(volumen, 0, 127); // Limitar el valor de volumen entre 0 y 127
+
+      Serial.write(176);  // "Control Change" en canal 1
+      Serial.write(7);    // Control Change para volumen (CC número 7)
+      Serial.write(volumen);  // Valor de volumen mapeado
+    }
+    distanciaAnterior2 = distancia2;
+  }
+
+  delay(120);  // Pausa antes de la próxima lectura
 }
